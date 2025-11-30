@@ -1,14 +1,24 @@
 import os
 from dotenv import load_dotenv
-from openai import AzureOpenAI
-from llama_index.llms.ollama import Ollama
+from openai import OpenAI
 
 
 load_dotenv(override=True)
-LOCAL_SETTINGS = False
 
 class RAG:
     def __init__(self, retriever):  
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        response = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Explain quantum computing in simple terms"},
+            ]
+        )
+
+        print(response.choices[0].message["content"])
+
         if LOCAL_SETTINGS:
             self.llm_name = 'llama3.2:latest'
         else:
