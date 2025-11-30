@@ -3,8 +3,8 @@ name = "event-searcher"
 version = "0.1.0"
 description = "A hybrid search to look up Milan Christmas events 2025, using RAG and web search."
 authors = [
-    "Daniel Colombaro <danielcolombaro00@gmail.com>",
-    "Alessandro Belotti <abelotti00@gmail.com>"
+    { name = "Daniel Colombaro", email =  "danielcolombaro00@gmail.com"},
+    { name = "Alessandro Belotti", email = "abelotti00@gmail.com"}
 ]
 license = {text = "GPL-3.0-only"}
 readme = "README.md"
