@@ -1,1 +1,1 @@
-# milan-events-searcher
+A hybrid search to look up Milan Christmas events 2025, using RAG and web search.
