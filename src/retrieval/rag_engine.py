@@ -94,14 +94,7 @@ class RAG:
         """
 
     def _setup_llm(self):
-        if LOCAL_SETTINGS:
-            return Ollama(model=self.llm_name, request_timeout=300000)   # in mms
-        else:
-            return AzureOpenAI(
-                api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-                api_key=os.environ["AZURE_OPENAI_API_KEY"],
-                azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-            )
+        return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     def generate_context(self, query):
         result = self.retriever.search(query)
