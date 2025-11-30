@@ -19,11 +19,6 @@ class RAG:
 
         print(response.choices[0].message["content"])
 
-        if LOCAL_SETTINGS:
-            self.llm_name = 'llama3.2:latest'
-        else:
-            self.llm_name = 'gpt-5'
-
         self.llm = self._setup_llm()
         self.retriever = retriever
 
@@ -132,15 +127,11 @@ class RAG:
             # Include the new evaluation prompt
             messages.append({"role": "user", "content": evaluation_prompt})
 
-            if LOCAL_SETTINGS:
-                response = self.llm.complete(evaluation_prompt)
-                assistant_reply = dict(response)['text']
-            else:
-                response = self.llm.chat.completions.create(
-                    model=self.llm_name,
-                    messages=messages,
-                )
-                assistant_reply = response.choices[0].message.content
+            response = self.llm.chat.completions.create(
+                model=self.llm_name,
+                messages=messages,
+            )
+            assistant_reply = response.choices[0].message.content
 
             # Save the assistant reply for further improvement attempts
             self.conversation_history.append({"role": "assistant", "content": assistant_reply})
@@ -156,15 +147,11 @@ class RAG:
             {"role": "user", "content": prompt}
         ]
 
-        if LOCAL_SETTINGS:
-            response = self.llm.complete(prompt)
-            assistant_reply = dict(response)['text']
-        else:
-            response = self.llm.chat.completions.create(
-                model=self.llm_name,
-                messages=messages
-            )
-            assistant_reply = response.choices[0].message.content
+        response = self.llm.chat.completions.create(
+            model=self.llm_name,
+            messages=messages
+        )
+        assistant_reply = response.choices[0].message.content
 
         # Update conversation history
         self.conversation_history = [

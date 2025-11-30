@@ -4,12 +4,7 @@ from docling.pipeline.vlm_pipeline import VlmPipeline
 from docling.datamodel import vlm_model_specs
 from docling.datamodel.pipeline_options import PdfPipelineOptions, VlmPipelineOptions, AcceleratorDevice, AcceleratorOptions
 import re
-from src.summaries_images import summaries
 from collections import OrderedDict
-
-#The VlmPipeline in Docling allows you to convert documents end-to-end using a vision-language model.
-
-summaries = OrderedDict(summaries)  # ensure insertion order is preserved
 
 
 #Replace each base64 image with its corresponding summary
