@@ -22,7 +22,7 @@ def replace_base64_images(md_text, summary_dict):
     return re.sub(pattern, replacement, md_text)
 
 
-def convert_pdf_to_markdown(pdf_path: str, output_path: str = "output/output.md") -> str:  
+def convert_pdf_to_markdown(pdf_path: str) -> str:  
     # Configura pipeline PDF (OCR + estrazione immagini)
     pipeline_options = PdfPipelineOptions(
         do_ocr=True,
@@ -50,12 +50,6 @@ def convert_pdf_to_markdown(pdf_path: str, output_path: str = "output/output.md"
    
     markdown_text = document.export_to_markdown(image_mode="embedded")
 
-    # Save markdown
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(markdown_text)
-
     return markdown_text
 
-# 334 sec per standardPdfPipeline per attention.pdf
-# 1382 sec  per standardPdfPipeline per analisi1.pdf
-# 786 sec  per standardPdfPipeline per analisi1.pdf
+
