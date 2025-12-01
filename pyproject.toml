@@ -1,32 +1,34 @@
-[project]
+[tool.poetry]
 name = "event-searcher"
 version = "0.1.0"
 description = "A hybrid search to look up Milan Christmas events 2025, using RAG and web search."
 authors = [
-    { name = "Daniel Colombaro", email =  "danielcolombaro00@gmail.com"},
-    { name = "Alessandro Belotti", email = "abelotti00@gmail.com"}
+    "Daniel Colombaro <danielcolombaro00@gmail.com>",
+    "Alessandro Belotti <abelotti00@gmail.com>"
 ]
-
-license = {text = "GPL-3.0-only"}
+license = "GPL-3.0-only"  # Il formato di licenza in Poetry è una stringa semplice
 readme = "README.md"
-requires-python = ">=3.13,<4.0"
-dependencies = [
-    "fastapi (>=0.122.0,<0.123.0)",
-    "uvicorn[standard] (>=0.38.0,<0.39.0)",
-    "httpx (>=0.28.1,<0.29.0)",
-    "qdrant-client (>=1.16.1,<2.0.0)",
-    "openai (>=2.8.1,<3.0.0)",
-    "python-dotenv (>=1.2.1,<2.0.0)",
-    "pydantic (>=2.12.5,<3.0.0)",
-    "llama-index (>=0.14.8,<0.15.0)",
-    "llama-index-embeddings-huggingface (>=0.6.1,<0.7.0)",
-    "transformers (>=4.57.3,<5.0.0)",
-    "einops (>=0.8.1,<0.9.0)",
-    "nest-asyncio (>=1.6.0,<2.0.0)",
-    "tqdm (>=4.67.1,<5.0.0)",
-    "streamlit (>=1.51.0,<2.0.0)"
-]
+packages = [{include = "src"}] # Aggiunto: necessario se il codice è in una cartella 'src' (comune per Poetry)
 
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0" # La versione di Python va qui
+fastapi = {version = ">=0.122.0,<0.123.0"}
+uvicorn = {version = ">=0.38.0,<0.39.0", extras = ["standard"]} # Gli extras vanno specificati in modo diverso
+httpx = {version = ">=0.28.1,<0.29.0"}
+qdrant-client = "1.15.1"
+openai = {version = ">=2.8.1,<3.0.0"}
+python-dotenv = {version = ">=1.2.1,<2.0.0"}
+pydantic = {version = ">=2.12.5,<3.0.0"}
+llama-index = {version = ">=0.14.8,<0.15.0"}
+llama-index-embeddings-huggingface = {version = ">=0.6.1,<0.7.0"}
+transformers = {version = ">=4.57.3,<5.0.0"}
+einops = {version = ">=0.8.1,<0.9.0"}
+nest-asyncio = {version = ">=1.6.0,<2.0.0"}
+tqdm = {version = ">=4.67.1,<5.0.0"}
+streamlit = {version = ">=1.51.0,<2.0.0"}
+docling = "^2.63.0"
+torch = {url = "https://download.pytorch.org/whl/cpu/torch-2.4.0%2Bcpu-cp312-cp312-linux_x86_64.whl"}
+torchvision = {url = "https://download.pytorch.org/whl/cpu/torchvision-0.19.0%2Bcpu-cp312-cp312-linux_x86_64.whl"}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

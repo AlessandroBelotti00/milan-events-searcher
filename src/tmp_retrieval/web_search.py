@@ -1,7 +1,9 @@
 # search.py
 from openai import OpenAI
 import time
+from dotenv import load_dotenv
 
+load_dotenv(override=True)
 client = OpenAI()
 
 async def web_search(user_query: str) -> dict:
@@ -10,12 +12,10 @@ async def web_search(user_query: str) -> dict:
 
     response = client.responses.create(
         model="gpt-4.1-mini",
-        reasoning={"effort": "medium"},
         input=f"Search the latest information about: {user_query}",
         max_output_tokens=400,
         # 👇 enables web search
-        web_search=True,
-        temperature=0.3
+        tools=[{"type": "web_search"}]
     )
 
     result = response.output_text
