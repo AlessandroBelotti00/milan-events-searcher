@@ -79,8 +79,8 @@ README.md                 # You're reading it
 
    Then run the following command to start Qdrant locally:
 
-   ```bash
-   docker run -p 6333:6333 qdrant/qdrant
+   ```bash: run with docker volumes for storage persistency
+   docker run -p 6333:6333 -v /home/user/qdrant_data:/qdrant/storage qdrant/qdrant
    ```
 
 4. **Run the app**:

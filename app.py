@@ -117,17 +117,22 @@ with st.sidebar:
                     save_embeddings(embeddata, f"embeddings_{name}.pkl")
 
                     st.session_state.embeddata = embeddata
+
+                    status_placeholder.info("Indexing the document...")
+                    progress_bar.progress(80)
                 
                 else:
                     # se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
                     embeddata = load_embeddings(f"embeddings_{name}.pkl")
+                
+                database = QdrantVDB(collection_name=f"Collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
+                if database.client.collection_exists("MultiMod_collection"):
+                    status_placeholder.info("Collection exists — loading existing index.")
+                else:
+                    status_placeholder.info("Collection does NOT exist — creating new index.")
+                    database.create_collection()
+                    database.ingest_data(embeddata)
 
-                status_placeholder.info("Indexing the document...")
-                progress_bar.progress(80)
-
-                database = QdrantVDB(collection_name="MultiMod_collection", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
-                database.create_collection()
-                database.ingest_data(embeddata)
 
                 st.session_state.database= database
 
