@@ -1,18 +1,28 @@
-import os
-from dotenv import load_dotenv
-from openai import OpenAI
+from datapizza.core.vectorstore import VectorConfig
+from datapizza.embedders.fastembedder import FastEmbedder
+from datapizza.modules.parsers.docling import DoclingParser
+from datapizza.modules.splitters import NodeSplitter
+from datapizza.pipeline import IngestionPipeline
+from datapizza.vectorstores.qdrant import QdrantVectorstore
 
+vectorstore = QdrantVectorstore(host="localhost", port=6333)
+embedder = FastEmbedder(
+    model_name="Qdrant/bm25",
+    embedding_name="bm25_embeddings",
+)
+vectorstore.create_collection("my_documents",vector_config=[VectorConfig(name="embedding", dimensions=1536)])
 
-load_dotenv(override=True)
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-response = client.chat.completions.create(
-    model=os.getenv("OPENAI_DEPLOYMENT_NAME"),
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Explain quantum computing in simple terms"},
-    ]
+pipeline = IngestionPipeline(
+    modules=[
+        DoclingParser(),
+        NodeSplitter(max_char=1024),
+        embedder,
+    ],
+    vector_store=vectorstore,
+    collection_name="my_documents"
 )
 
+pipeline.run("./docs/ricettario1.pdf")
 
-print(response.choices[0].message.content)
+results = vectorstore.search(query_vector = [0.0] * 1536, collection_name="my_documents", k=5)
+print(results)
