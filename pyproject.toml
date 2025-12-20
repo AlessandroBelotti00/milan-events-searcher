@@ -27,6 +27,8 @@ streamlit = {version = ">=1.51.0,<2.0.0"}
 datapizza-ai-parsers-docling = "^0.0.8"
 datapizza-ai-embedders-fastembedder = "^0.0.4"
 datapizza-ai-vectorstores-qdrant = "^0.0.6"
+datapizza-ai-clients-openai = "^0.0.9"
+llama-index-embeddings-huggingface = "^0.6.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

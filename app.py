@@ -125,8 +125,8 @@ with st.sidebar:
                     # se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
                     embeddata = load_embeddings(f"embeddings_{name}.pkl")
                 
-                database = QdrantVDB(collection_name=f"Collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
-                if database.client.collection_exists("MultiMod_collection"):
+                database = QdrantVDB(collection_name=f"collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
+                if database.client.collection_exists(f"collection_{name}"):
                     status_placeholder.info("Collection exists — loading existing index.")
                 else:
                     status_placeholder.info("Collection does NOT exist — creating new index.")

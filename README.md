@@ -79,9 +79,10 @@ README.md                 # You're reading it
 
    Then run the following command to start Qdrant locally:
 
-   ```bash: run with docker volumes for storage persistency
-   docker run -p 6333:6333 -v /home/user/qdrant_data:/qdrant/storage qdrant/qdrant
-   ```
+   Use `docker-compose` to initialize and run the LamAPI services:
+
+      docker-compose up 
+
 
 4. **Run the app**:
 
