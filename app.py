@@ -128,7 +128,7 @@ with st.sidebar:
                 database = QdrantVDB(collection_name=f"collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
                 if database.client.collection_exists(f"collection_{name}"):
                     status_placeholder.info("Collection exists — loading existing index.")
-                else:
+                else:   
                     status_placeholder.info("Collection does NOT exist — creating new index.")
                     database.create_collection()
                     database.ingest_data(embeddata)
@@ -186,8 +186,7 @@ if prompt := st.chat_input("Ask a question..."):
                 response_text = rag.query(prompt, difficulty=st.session_state.difficulty)
                 message_placeholder.markdown(response_text)
 
-            
-
+        response = st.write_stream(response_text)
     # Store assistant response
     st.session_state.messages.append({"role": "assistant", "content": response_text})
 

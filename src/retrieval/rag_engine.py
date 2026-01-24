@@ -120,8 +120,12 @@ class RAG:
             response = self.llm.chat.completions.create(
                 model=self.llm_name,
                 messages=messages,
+                stream=True,
             )
-            assistant_reply = response.choices[0].message.content
+
+            assistant_reply = ""
+            for chunk in response:
+                assistant_reply += chunk.choices[0].delta
 
             # Save the assistant reply for further improvement attempts
             self.conversation_history.append({"role": "assistant", "content": assistant_reply})
@@ -139,9 +143,13 @@ class RAG:
 
         response = self.llm.chat.completions.create(
             model=self.llm_name,
-            messages=messages
+            messages=messages,
+            stream=True,
         )
-        assistant_reply = response.choices[0].message.content
+        assistant_reply = ""
+        for chunk in response:
+            assistant_reply += chunk.choices[0].delta
+
 
         # Update conversation history
         self.conversation_history = [

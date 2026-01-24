@@ -9,10 +9,10 @@ def batch_iterate(lst, batch_size):
 
 class QdrantVDB:
     def __init__(self, collection_name, vector_dim=768, batch_size=7):
-        self.collection_name = collection_name
         self.vector_dim = vector_dim
         self.batch_size = batch_size
         self.client = QdrantClient(url="http://localhost:6333")
+        self.collection_name = collection_name
 
     # def create_collection(self):
     # # Check if the collection exists

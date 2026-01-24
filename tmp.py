@@ -1,41 +1,38 @@
-import os
-from datapizza.clients.openai import OpenAIClient
-from datapizza.core.vectorstore import VectorConfig
-from datapizza.embedders import ChunkEmbedder
-from datapizza.modules.parsers.docling import DoclingParser
-from datapizza.modules.splitters import NodeSplitter
-from datapizza.pipeline import IngestionPipeline
-from datapizza.vectorstores.qdrant import QdrantVectorstore
-from datapizza.clients.openai.openai_client import OpenAIClient
-from datapizza.modules.rewriters import ToolRewriter
-from dotenv import load_dotenv
+# retrieval.py
 
+import time
+from qdrant_client import models, QdrantClient
+from src.retrieval.chunk_embed import chunk_markdown, EmbedData, save_embeddings, load_embeddings
+from src.retrieval.index import QdrantVDB
 
-load_dotenv(override=True)
+name = 'ricettario1'
+query = 'What are the main ingredients for making a Margherita pizza?'
+print(query)
+# se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
+embeddata = load_embeddings(f"embeddings_{name}.pkl")
 
+# vector_db = QdrantVDB(collection_name=f"collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
+vector_db = QdrantClient(host="localhost", port=6333)
+query_embedding = embeddata.embed_model.get_query_embedding(query)
+top_k=7
 
+print("----------------------------------")
+print(vector_db.collection_exists(f"collection_{name}"))
+print("----------------------------------")
 
-vector_store = QdrantVectorstore(host="localhost", port=6333)
-
-vector_store.create_collection(collection_name="datapizza", vector_config=[VectorConfig(dimensions=1536, name="vector_name")])
-
-pipeline = IngestionPipeline(
-    modules=[
-        DoclingParser(),
-        NodeSplitter(max_char=2000),
-        ChunkEmbedder(client=OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"), model="text-embedding-3-small"), model_name="text-embedding-3-small", embedding_name="small"),
-    ],
-    vector_store=vector_store,
-    collection_name="datapizza",
+result = vector_db.search(
+    collection_name=f"collection_{name}",
+    query_vector=query_embedding,
+    limit=top_k,
+    # search_params=models.SearchParams(
+    #     quantization=models.QuantizationSearchParams(
+    #         ignore=True,
+    #         rescore=True,   # re-ranking with vector similarity
+    #         oversampling=2.0,
+    #     )
+    # ),
+    # timeout=1000,
 )
 
-pipeline.run("./docs/ricettario1.pdf")
 
-results = vector_store.search(
-    query_text="ricette italiane con pasta",
-    collection_name="datapizza",
-    k=5
-)
-print(results)
-
-# print(vector_store.search(query_vector= [0.0]*1536, collection_name="datapizza", k=4))
+print(result)
