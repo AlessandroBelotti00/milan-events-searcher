@@ -5,19 +5,10 @@
 import streamlit as st
 import os
 import base64
-import tempfile
 import uuid
 import time
 import gc
-import nest_asyncio 
-nest_asyncio.apply()
-
-from src.retrieval.utils import convert_pdf_to_markdown
-from src.retrieval.chunk_embed import chunk_markdown, EmbedData, save_embeddings, load_embeddings
-from src.retrieval.index import QdrantVDB
-from src.retrieval.retriever import Retriever
-from src.retrieval.rag_engine import RAG
-from llama_index.core import Settings
+import httpx
 
 # Configurazioni della pagina
 st.set_page_config(
@@ -31,24 +22,56 @@ if "id" not in st.session_state:
 
 session_id = st.session_state.id
 
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
+def _api_url(path: str) -> str:
+    return f"{API_BASE_URL}{path}"
+
+
+def _ingest_document(file_bytes: bytes, filename: str, session_id: str) -> dict:
+    files = {"file": (filename, file_bytes, "application/pdf")}
+    data = {"session_id": session_id}
+    timeout = httpx.Timeout(600.0, connect=10.0)
+    with httpx.Client(timeout=timeout) as client:
+        response = client.post(_api_url("/ingest"), data=data, files=files)
+        response.raise_for_status()
+        return response.json()
+
+
+def _query_backend(session_id: str, prompt: str, difficulty: str) -> str:
+    payload = {"session_id": session_id, "prompt": prompt, "difficulty": difficulty}
+    timeout = httpx.Timeout(120.0, connect=10.0)
+    with httpx.Client(timeout=timeout) as client:
+        response = client.post(_api_url("/query"), json=payload)
+        response.raise_for_status()
+        return response.json()["response"]
+
+
+def _reset_backend(session_id: str) -> None:
+    payload = {"session_id": session_id}
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    with httpx.Client(timeout=timeout) as client:
+        client.post(_api_url("/reset"), json=payload)
+
 
 def reset_chat():
     st.session_state.messages = []
     st.session_state.context = None
     gc.collect()
 
-    # Reset the current question in RAG
-    rag = st.session_state.get("rag")
-    if rag:
-        rag.last_question = None
-        rag.conversation_history = []
+    if st.session_state.get("id"):
+        try:
+            _reset_backend(str(st.session_state.id))
+        except httpx.HTTPError:
+            st.warning("Backend reset failed. The next query may reuse prior context.")
 
     st.success("Chat cleared. You can start a new question now.")
 
 # Function to display the uploaded PDF in the app
-def display_pdf(file):
-    st.markdown("### 📄 PDF Preview")
-    base64_pdf = base64.b64encode(file.read()).decode("utf-8")
+def display_pdf(file_bytes):
+    st.markdown("### PDF Preview")
+    base64_pdf = base64.b64encode(file_bytes).decode("utf-8")
     pdf_display = f"""<iframe src="data:application/pdf;base64,{base64_pdf}" width="500" height="100%" type="application/pdf"
                         style="height:100vh; width:100%"
                     >
@@ -78,68 +101,22 @@ with st.sidebar:
     
 
     if uploaded_file:
+        file_bytes = uploaded_file.getvalue()
         file_key = f"{session_id}-{uploaded_file.name}"
         if file_key not in st.session_state.file_cache:
             status_placeholder = st.empty()
-            status_placeholder.info("📥 File uploaded successfully")
+            status_placeholder.info("File uploaded successfully")
         
             time.sleep(2.5)  # Delay before switching message
-            name = uploaded_file.name.rsplit('.', 1)[0]
+            status_placeholder.info("Processing document...")
+            progress_bar = st.progress(15)
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                file_path = os.path.join(temp_dir, uploaded_file.name)
-                print(f"Temporary file path: {file_path}")
-                # Save uploaded file to temp dir
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getvalue())
-
-                status_placeholder.info("Identifying document layout...")
-                progress_bar = st.progress(10)
-
-                found = any(
-                    os.path.isfile(f) and f.startswith(f"embeddings_{name}" + '.')
-                    for f in os.listdir('.')
-                )
-
-                if not found:
-                    # Convert to markdown
-                    markdown_text = convert_pdf_to_markdown(file_path)
-                    st.session_state.markdown_text = markdown_text
-
-                    status_placeholder.info("Generating embeddings...")
-                    progress_bar.progress(50)
-                    
-                    chunks = chunk_markdown(markdown_text)
-                    st.session_state.chunks = chunks
-
-                    embeddata = EmbedData(batch_size=8)
-                    embeddata.embed(chunks)
-                    save_embeddings(embeddata, f"embeddings_{name}.pkl")
-
-                    st.session_state.embeddata = embeddata
-
-                    status_placeholder.info("Indexing the document...")
-                    progress_bar.progress(80)
-                
-                else:
-                    # se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
-                    embeddata = load_embeddings(f"embeddings_{name}.pkl")
-                
-                database = QdrantVDB(collection_name=f"collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
-                if database.client.collection_exists(f"collection_{name}"):
-                    status_placeholder.info("Collection exists — loading existing index.")
-                else:
-                    status_placeholder.info("Collection does NOT exist — creating new index.")
-                    database.create_collection()
-                    database.ingest_data(embeddata)
-
-
-                st.session_state.database= database
-
-                # After vector DB and embeddata have been defined...
-                retriever = Retriever(database, embeddata=embeddata)
-                rag = RAG(retriever)
-                st.session_state.rag = rag
+            try:
+                _ingest_document(file_bytes, uploaded_file.name, str(session_id))
+            except httpx.HTTPError as exc:
+                status_placeholder.error("Backend ingestion failed. Please retry.")
+                st.exception(exc)
+            else:
                 status_placeholder = st.empty()
                 st.success("Ready to Chat...")
                 progress_bar.progress(100)
@@ -152,7 +129,7 @@ with st.sidebar:
     col1, col2, col3 = st.columns([1, 1, 1])
 
     with col2:
-        st.button("Clear ↺", on_click=reset_chat)
+        st.button("Clear", on_click=reset_chat)
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -177,18 +154,28 @@ if prompt := st.chat_input("Ask a question..."):
         message_placeholder = st.empty()
     
         with st.spinner("Thinking..."):
-        
-            rag = st.session_state.get("rag")   
-
-            if rag is None:
-                st.warning("Please upload a PDF to initialize the RAG system first.")
-            else:
-                response_text = rag.query(prompt, difficulty=st.session_state.difficulty)
+            response_text = ""
+            try:
+                response_text = _query_backend(
+                    str(session_id),
+                    prompt,
+                    st.session_state.difficulty,
+                )
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 400:
+                    response_text = "Please upload a PDF to initialize the RAG system first."
+                    st.warning(response_text)
+                else:
+                    response_text = "Backend error while generating a response."
+                    st.error(response_text)
+            except httpx.HTTPError as exc:
+                response_text = "Backend connection failed. Please retry."
+                st.error(response_text)
+                st.exception(exc)
+            if response_text:
                 message_placeholder.markdown(response_text)
 
             
 
     # Store assistant response
     st.session_state.messages.append({"role": "assistant", "content": response_text})
-
-
