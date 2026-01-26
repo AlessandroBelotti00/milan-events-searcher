@@ -17,65 +17,67 @@ class RAG:
         self.last_question = None
 
         self.qa_prompt_tmpl_str = """
-            Context information is below.
-                <context/user_query>:
-                ---------------------
-                {context}
-                ---------------------
+            Le informazioni di contesto sono riportate di seguito.
+            <context/user_query>:
+            ---------------------
+            {context}
+            ---------------------
 
-                Based on the context information above, generate **one single open-ended question** related to the query below. Follow these rules precisely:
+            Sulla base delle informazioni contenute in `{context}`, genera una **ricetta completa e chiara** che risponda alla richiesta dell’utente. Segui queste regole in modo preciso:
 
-                1. **Number of questions:** 1  
-                2. **Question type:** Open-ended (short essay or problem-solving)  
-                3. **Difficulty level:** the the difficulty level and deepness of the question has to be {difficulty}
-                4. **Content level:** University level (intermediate to advanced), aligned with the topic in `{context}`.  
-                5. **LaTeX formatting:**  
-                - Use inline math between single dollar signs `$...$`  
-                - Use block math between double dollar signs `$$...$$`  
-                - Do not escape backslashes
-                6. **Tone:** Professional and educational
-                7. **Output format:**  
+            1. **Fonte delle informazioni:**  
+            - Usa **solo** le informazioni presenti in `{context}`.  
+            - Non inventare ingredienti o passaggi di preparazione non presenti nel contesto.
 
-                    ```
-                    **Open-ended Question**
+            2. **Obiettivo della ricetta:**  
+            - Fornisci una **ricetta finale e utilizzabile** per il cibo o la preparazione richiesta.  
+            - La ricetta deve essere comprensibile e pratica per chi cucina a casa.
 
-                    [your question here]
-                    ```
+            3. **Sezione Ingredienti:**  
+            - Includi una sezione intitolata **Ingredienti**.  
+            - Elenca gli ingredienti usando un **elenco puntato** (`- ingrediente`).  
+            - Includi le quantità se presenti nel contesto.
 
-                8. **Interaction flow:**  
-                - Step 1: Generate and display the question only.  
-                - Step 2: Wait for the user to provide their answer.  
-                - Step 3: After receiving the user’s answer, evaluate it:
-                    - Positive feedback if correct or partially correct, plus explanation.
-                    - Constructive feedback and correct answer if incorrect.
+            4. **Sezione Preparazione:**  
+            - Includi una sezione intitolata **Preparazione**.  
+            - Descrivi i passaggi in **ordine chiaro e logico**.  
+            - Usa paragrafi brevi o passaggi numerati se opportuno.
 
-                9. **Language:** English only.
+            5. **Livello di dettaglio:**  
+            - Sii preciso e conciso, includendo tutti i passaggi essenziali.  
+            - Considera un livello di abilità **intermedio per cucina casalinga**.
 
-                ---------------------
-                Query: {query}
-                ---------------------
-                Answer:
-        """
+            6. **Tono:**  
+            - Chiaro, amichevole e istruttivo.  
+            - Evita storie o opinioni personali.
 
-        self.evaluation_prompt = """
-        Evaluate the following user answer based on the question asked previously.
+            7. **Formato di output:**  
 
-        Question:
-        {question}
+            **Titolo della ricetta**
 
-        User Answer:
-        {user_answer}
-        
-        Your task:
-            1. Assess the answer for relevance, accuracy, completeness, and clarity.
-            2. Assign a **numerical grade from 0 to 100**. Round to the nearest whole number.
-            3. Provide constructive feedback and explain **exactly why you assigned this grade**.
-            4. Use the following strict output format:
-                - Check if the answer is relevant and correct regarding the question.
-                - Provide constructive feedback.
-                - If correct or partially correct → positive feedback + short explanation.
-                - If incorrect → constructive feedback + correct answer.
-                - Answer in English.
+            **Ingredienti**
+            - ingrediente 1  
+            - ingrediente 2  
+            - ingrediente 3  
+
+            **Preparazione**
+            1. Passaggio uno  
+            2. Passaggio due  
+            3. Passaggio tre  
+
+            8. **Restrizioni:**  
+            - Non porre domande all’utente.  
+            - Non includere spiegazioni fuori dalla ricetta.  
+            - Non racchiudere l’output in blocchi di codice o triple backtick.
+
+            9. **Lingua:**  
+            - Solo Italiano.
+
+            ---------------------
+            Richiesta utente: {query}
+            ---------------------
+            Risposta:
+
         """
 
     def _setup_llm(self):
@@ -91,6 +93,21 @@ class RAG:
             combined_prompt.append(context_str)
 
         return "\n\n---\n\n".join(combined_prompt)
+    
+    def stream_and_store(self, stream):
+        full_text = ""
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                full_text += delta.content
+                yield delta.content   # for real streaming
+
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": full_text
+        })
+
+
 
     def query(self, query, difficulty):
         """
@@ -99,40 +116,6 @@ class RAG:
         - If there is an active question → evaluate or continue the discussion.
         """
 
-        # If there's an ongoing conversation (user is responding or retrying)
-        if self.last_question:
-            # Append new user message to conversation history
-            self.conversation_history.append({"role": "user", "content": query})
-
-            # Build evaluation prompt dynamically from conversation
-            evaluation_prompt = self.evaluation_prompt.format(
-                question=self.last_question,
-                user_answer=query
-            )
-
-            # Add evaluator system prompt
-            messages = [{"role": "system", "content": "You are a university evaluator."}]
-            messages.extend(self.conversation_history)  # Include full conversation
-
-            # Include the new evaluation prompt
-            messages.append({"role": "user", "content": evaluation_prompt})
-
-            response = self.llm.chat.completions.create(
-                model=self.llm_name,
-                messages=messages,
-                stream=True,
-            )
-
-            assistant_reply = ""
-            for chunk in response:
-                assistant_reply += chunk.choices[0].delta
-
-            # Save the assistant reply for further improvement attempts
-            self.conversation_history.append({"role": "assistant", "content": assistant_reply})
-
-            return assistant_reply
-
-        # Otherwise, it's a new question
         context = self.generate_context(query)
         prompt = self.qa_prompt_tmpl_str.format(context=context, difficulty=difficulty, query=query)
 
@@ -146,17 +129,5 @@ class RAG:
             messages=messages,
             stream=True,
         )
-        assistant_reply = ""
-        for chunk in response:
-            assistant_reply += chunk.choices[0].delta
-
-
-        # Update conversation history
-        self.conversation_history = [
-            {"role": "user", "content": query},
-            {"role": "assistant", "content": assistant_reply}
-        ]
-        self.last_question = assistant_reply
-
-        return assistant_reply
-
+        
+        return self.stream_and_store(response)

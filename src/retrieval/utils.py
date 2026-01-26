@@ -8,18 +8,10 @@ from collections import OrderedDict
 
 
 #Replace each base64 image with its corresponding summary
-def replace_base64_images(md_text, summary_dict):
+def replace_base64_images(md_text):
     pattern = r'!\[.*?\]\(data:image\/png;base64,[A-Za-z0-9+/=\n]+\)'
 
-    def replacement(match):
-        # Get next unused key from the summaries dict
-        if summary_dict:
-            key, value = summary_dict.popitem(last=False)  # pop the first item
-            return f"\n\n{value}\n\n"
-        else:
-            return "\n\n[Image removed - no summary available]\n\n"
-
-    return re.sub(pattern, replacement, md_text)
+    return re.sub(pattern, "", md_text)
 
 
 def convert_pdf_to_markdown(pdf_path: str) -> str:  
@@ -50,6 +42,8 @@ def convert_pdf_to_markdown(pdf_path: str) -> str:
    
     markdown_text = document.export_to_markdown(image_mode="embedded")
 
-    return markdown_text
+    
+
+    return replace_base64_images(markdown_text)
 
 

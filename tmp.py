@@ -5,8 +5,11 @@ from qdrant_client import models, QdrantClient
 from src.retrieval.chunk_embed import chunk_markdown, EmbedData, save_embeddings, load_embeddings
 from src.retrieval.index import QdrantVDB
 
+#TODO
+#TESTARE convert_pdf_to_markdown() CON IL PDF
+
 name = 'ricettario1'
-query = 'What are the main ingredients for making a Margherita pizza?'
+query = 'cosa posso cucinare con porri e pomodori confit?'
 print(query)
 # se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
 embeddata = load_embeddings(f"embeddings_{name}.pkl")
@@ -16,22 +19,18 @@ vector_db = QdrantClient(host="localhost", port=6333)
 query_embedding = embeddata.embed_model.get_query_embedding(query)
 top_k=7
 
-print("----------------------------------")
-print(vector_db.collection_exists(f"collection_{name}"))
-print("----------------------------------")
-
 result = vector_db.search(
     collection_name=f"collection_{name}",
     query_vector=query_embedding,
     limit=top_k,
-    # search_params=models.SearchParams(
-    #     quantization=models.QuantizationSearchParams(
-    #         ignore=True,
-    #         rescore=True,   # re-ranking with vector similarity
-    #         oversampling=2.0,
-    #     )
-    # ),
-    # timeout=1000,
+    search_params=models.SearchParams(
+        quantization=models.QuantizationSearchParams(
+            ignore=True,
+            rescore=True,   # re-ranking with vector similarity
+            oversampling=2.0,
+        )
+    ),
+    timeout=1000,
 )
 
 

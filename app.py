@@ -175,19 +175,16 @@ if prompt := st.chat_input("Ask a question..."):
     # Generate RAG-based response
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-    
-        with st.spinner("Thinking..."):
         
-            rag = st.session_state.get("rag")   
+        rag = st.session_state.get("rag")   
 
-            if rag is None:
-                st.warning("Please upload a PDF to initialize the RAG system first.")
-            else:
-                response_text = rag.query(prompt, difficulty=st.session_state.difficulty)
-                message_placeholder.markdown(response_text)
+        if rag is None:
+            st.warning("Please upload a PDF to initialize the RAG system first.")
+        else:
+            response_text = rag.query(prompt, difficulty=st.session_state.difficulty)
 
         response = st.write_stream(response_text)
     # Store assistant response
-    st.session_state.messages.append({"role": "assistant", "content": response_text})
+    st.session_state.messages.append({"role": "assistant", "content": response})
 
 
