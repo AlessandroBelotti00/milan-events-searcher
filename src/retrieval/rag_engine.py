@@ -85,14 +85,15 @@ class RAG:
 
     def generate_context(self, query):
         result = self.retriever.search(query)
-        context = [dict(data) for data in result]
-        combined_prompt = []
+        context = []
+        for entry in result:
+            point_id = entry.id  # the numeric ID from Qdrant
+            chunk_text = self.chunks[point_id]  # retrieve the original text
+            context.append(chunk_text)
 
-        for entry in context:
-            context_str = entry["payload"]["context"]
-            combined_prompt.append(context_str)
+        combined_prompt = "\n\n---\n\n".join(context)
+        return combined_prompt
 
-        return "\n\n---\n\n".join(combined_prompt)
     
     def stream_and_store(self, stream):
         full_text = ""

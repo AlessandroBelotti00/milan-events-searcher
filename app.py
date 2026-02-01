@@ -13,7 +13,7 @@ import nest_asyncio
 nest_asyncio.apply()
 
 from src.retrieval.utils import convert_pdf_to_markdown
-from src.retrieval.chunk_embed import chunk_markdown, EmbedData, save_embeddings, load_embeddings
+from src.retrieval.chunk_embed import *
 from src.retrieval.index import QdrantVDB
 from src.retrieval.retriever import Retriever
 from src.retrieval.rag_engine import RAG
@@ -101,6 +101,7 @@ with st.sidebar:
                     for f in os.listdir('.')
                 )
 
+                
                 if not found:
                     # Convert to markdown
                     markdown_text = convert_pdf_to_markdown(file_path)
@@ -109,21 +110,25 @@ with st.sidebar:
                     status_placeholder.info("Generating embeddings...")
                     progress_bar.progress(50)
                     
-                    chunks = chunk_markdown(markdown_text)
-                    st.session_state.chunks = chunks
+                    chunk_list = chunking_llm(markdown_text)
+                    st.session_state.chunks = chunk_list
 
                     embeddata = EmbedData(batch_size=8)
-                    embeddata.embed(chunks)
+                    embeddata.embed(chunk_list)
                     save_embeddings(embeddata, f"embeddings_{name}.pkl")
 
                     st.session_state.embeddata = embeddata
 
                     status_placeholder.info("Indexing the document...")
                     progress_bar.progress(80)
+
+                    status_placeholder.info("Collection does NOT exist — creating new index.")
+
                 
                 else:
                     # se avevo già calcolato l'embeddings lo ricarico invece di ricalcolarmelo
                     embeddata = load_embeddings(f"embeddings_{name}.pkl")
+
                 
                 database = QdrantVDB(collection_name=f"collection_{name}", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
                 if database.client.collection_exists(f"collection_{name}"):

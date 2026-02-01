@@ -1,7 +1,8 @@
 # vector_store.py
 
 from qdrant_client import QdrantClient, models
-from tqdm import tqdm
+from qdrant_client.models import PointStruct
+from src.retrieval.chunk_embed import EmbedData
 
 def batch_iterate(lst, batch_size):
     for i in range(0, len(lst), batch_size):
@@ -52,20 +53,28 @@ class QdrantVDB:
 
 
 
-    def ingest_data(self, embeddata):
-        for batch_context, batch_embeddings in tqdm(
-            zip(batch_iterate(embeddata.contexts, self.batch_size),
-                batch_iterate(embeddata.embeddings, self.batch_size)),
-            total=len(embeddata.contexts) // self.batch_size,
-            desc="Ingesting in batches"
-        ):
-            self.client.upload_collection(
-                collection_name=self.collection_name,
-                vectors=batch_embeddings,
-                payload=[{"context": context} for context in batch_context]
+
+    def ingest_data(self, embeddata: EmbedData):
+        points = []
+
+        for idx, embedding in enumerate(embeddata.embeddings):
+            points.append(
+                PointStruct(
+                    id=idx,
+                    vector=embedding.tolist()
+                )
             )
 
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=points
+        )
+
+        # opzionale ma ok
         self.client.update_collection(
             collection_name=self.collection_name,
-            optimizer_config=models.OptimizersConfigDiff(indexing_threshold=20000)
+            optimizer_config=models.OptimizersConfigDiff(
+                indexing_threshold=20000
+            )
         )
+

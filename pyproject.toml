@@ -24,8 +24,9 @@ nest-asyncio = {version = ">=1.6.0,<2.0.0"}
 tqdm = {version = ">=4.67.1,<5.0.0"}
 streamlit = {version = ">=1.51.0,<2.0.0"}
 llama-index-embeddings-huggingface = "^0.6.1"
-docling = "^2.65.0"
+docling = "^2.70.0"
 qdrant-client = "1.15.1"
+langchain-openai = "^1.1.7"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
