@@ -75,6 +75,7 @@ class EmbedData:
         self.embed_model = self._load_embed_model()
         self.batch_size = batch_size
         self.embeddings = []
+        self.chunks = []
         self.contexts = []
 
     def _load_embed_model(self):
@@ -84,8 +85,6 @@ class EmbedData:
 
     def generate_embedding(self, chunk: Chunk) -> np.ndarray:
    
-        # for chunk in [chunk_to_embedding_text(chunk) for chunk in chunk_list.chunks]:  # iterate over each Chunk
-        # Embed each field separately
         title_emb = np.array(
             self.embed_model.get_text_embedding(chunk.title),
             dtype=np.float32
@@ -121,6 +120,7 @@ class EmbedData:
         for el in contexts.chunks:
             embeddings = self.generate_embedding(el)
             self.embeddings.append(embeddings)
+            self.chunks.append(chunk_to_embedding_text(el))
 
 
 # --------- Save / Load ---------

@@ -61,7 +61,10 @@ class QdrantVDB:
             points.append(
                 PointStruct(
                     id=idx,
-                    vector=embedding.tolist()
+                    vector=embedding.tolist(),
+                    payload={
+                        "text": embeddata.chunks[idx]   # original text
+                    }
                 )
             )
 

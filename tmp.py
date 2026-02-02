@@ -12,6 +12,7 @@ import os
 from dotenv import load_dotenv
 from src.retrieval.utils import convert_pdf_to_markdown
 from langchain_openai import ChatOpenAI
+from src.retrieval.index import QdrantVDB
 from pydantic import BaseModel, Field
 from src.retrieval.chunk_embed import ChunkList, chunking_llm, EmbedData
 
@@ -147,15 +148,11 @@ raw_text = open("C:/Users/al.belotti/personal_projects/milan-events-searcher/ric
 chunk_list = chunking_llm(raw_text) 
 embeddata = EmbedData(batch_size=8)
 embeddata.embed(chunk_list)
-for el in [chunk_to_embedding_text(chunk) for chunk in chunk_list.chunks]:
-    print(el)
-    print("--------------------------")
+# for el in [chunk_to_embedding_text(chunk) for chunk in chunk_list.chunks]:
+#     print(el)
+#     print("--------------------------")
 
-# title_emb = embed(chunk.title)
-# ingredients_emb = embed(chunk.ingredients)
-# prep_emb = embed(chunk.preparation)
-# mode_emb = embed(chunk.cooking_mode)
+database = QdrantVDB(collection_name=f"collection_ricettario1", vector_dim=len(embeddata.embeddings[0]), batch_size=7)
 
-# # Weighted average
-# final_emb = normalize(0.5*ingredients_emb + 0.3*prep_emb + 0.2*title_emb)
-
+database.create_collection()
+database.ingest_data(embeddata)

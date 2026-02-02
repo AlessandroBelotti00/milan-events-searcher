@@ -83,12 +83,21 @@ class RAG:
     def _setup_llm(self):
         return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+    # def generate_context(self, query):
+    #     result = self.retriever.search(query)
+    #     context = [dict(data) for data in result]
+    #     combined_prompt = []
+
+    #     for entry in context:
+    #         context_str = entry["payload"]["context"]
+    #         combined_prompt.append(context_str)
+
     def generate_context(self, query):
         result = self.retriever.search(query)
         context = []
         for entry in result:
             point_id = entry.id  # the numeric ID from Qdrant
-            chunk_text = self.chunks[point_id]  # retrieve the original text
+            chunk_text = entry.payload["text"]  # retrieve the original text
             context.append(chunk_text)
 
         combined_prompt = "\n\n---\n\n".join(context)
