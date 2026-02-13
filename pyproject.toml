@@ -11,7 +11,7 @@ readme = "README.md"
 packages = [{include = "src"}] # Aggiunto: necessario se il codice è in una cartella 'src' (comune per Poetry)
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14" # La versione di Python va qui
+python = ">=3.10,<3.14"
 fastapi = {version = ">=0.122.0,<0.123.0"}
 uvicorn = {version = ">=0.38.0,<0.39.0", extras = ["standard"]} # Gli extras vanno specificati in modo diverso
 httpx = {version = ">=0.28.1,<0.29.0"}
