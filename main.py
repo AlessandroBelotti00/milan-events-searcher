@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from src.retrieval.utils import convert_pdf_to_markdown
-from src.retrieval.chunk_embed import EmbedData, save_embeddings, load_embeddings
+from src.retrieval.chunk_embed import EmbedData, save_embeddings, load_embeddings, chunking_llm
 from src.retrieval.index import QdrantVDB
 from src.retrieval.retriever import Retriever
 from src.retrieval.rag_engine import RAG
@@ -29,9 +29,11 @@ IO_EXECUTOR = ThreadPoolExecutor(max_workers=16)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("fastapi lifespan start")
     try:
         yield
     finally:
+        logger.info("fastapi lifespan shutdown")
         CPU_EXECUTOR.shutdown(wait=False)
         IO_EXECUTOR.shutdown(wait=False)
 
@@ -77,6 +79,14 @@ def _consume_stream(result) -> str:
     return "".join(result)
 
 
+def _collection_points_count(database: QdrantVDB) -> int:
+    count_result = database.client.count(
+        collection_name=database.collection_name,
+        exact=True,
+    )
+    return int(getattr(count_result, "count", 0))
+
+
 async def _run_cpu(func, *args):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(CPU_EXECUTOR, functools.partial(func, *args))
@@ -118,6 +128,7 @@ class ResetRequest(BaseModel):
 
 @app.get("/health")
 async def health_check() -> dict:
+    logger.info("health check requested")
     return {"status": "ok"}
 
 
@@ -158,7 +169,18 @@ async def ingest_document(
         if embeddings_exist:
             logger.info("loading cached embeddings path=%s", embeddings_path)
             embeddata = await _run_cpu(load_embeddings, embeddings_path)
+            if len(embeddata.chunks) != len(embeddata.embeddings):
+                logger.warning(
+                    "cached embeddings missing chunk payloads path=%s chunks=%d embeddings=%d; rebuilding",
+                    embeddings_path,
+                    len(embeddata.chunks),
+                    len(embeddata.embeddings),
+                )
+                embeddings_exist = False
         else:
+            embeddata = None
+
+        if not embeddings_exist:
             logger.info("building embeddings for filename=%s", file.filename)
             with tempfile.TemporaryDirectory() as temp_dir:
                 file_path = os.path.join(temp_dir, file.filename)
@@ -166,12 +188,12 @@ async def ingest_document(
                 markdown_text = await _run_cpu(convert_pdf_to_markdown, file_path)
 
             logger.info("chunking markdown")
-            chunks = await _run_cpu(chunk_markdown, markdown_text)
-            if not chunks:
+            chunks = await _run_cpu(chunking_llm, markdown_text)
+            if not chunks or not chunks.chunks:
                 raise HTTPException(status_code=400, detail="No content extracted from PDF.")
 
             embeddata = EmbedData(batch_size=8)
-            logger.info("embedding chunks count=%d", len(chunks))
+            logger.info("embedding chunks count=%d", len(chunks.chunks))
             await _run_cpu(embeddata.embed, chunks)
             logger.info("saving embeddings path=%s", embeddings_path)
             await _run_io(save_embeddings, embeddata, embeddings_path)
@@ -185,9 +207,20 @@ async def ingest_document(
             batch_size=7,
         )
         exists = await _run_io(database.client.collection_exists, database.collection_name)
+        should_ingest = False
+
         if not exists:
             logger.info("creating collection=%s", database.collection_name)
             await _run_io(database.create_collection)
+            should_ingest = True
+        else:
+            points_count = await _run_io(_collection_points_count, database)
+            logger.info("existing collection=%s points_count=%d", database.collection_name, points_count)
+            if points_count == 0:
+                logger.warning("collection exists but is empty; ingesting collection=%s", database.collection_name)
+                should_ingest = True
+
+        if should_ingest:
             logger.info("ingesting embeddings collection=%s", database.collection_name)
             await _run_io(database.ingest_data, embeddata)
 
@@ -298,6 +331,7 @@ async def reset_session(request: ResetRequest) -> dict:
 def main():
     import uvicorn
 
+    logger.info("starting uvicorn server")
     uvicorn.run("main:app", reload=True)
 
 if __name__ == "__main__":

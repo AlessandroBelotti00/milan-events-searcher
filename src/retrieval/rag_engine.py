@@ -1,15 +1,18 @@
 import os
+import logging
 from dotenv import load_dotenv
 from openai import OpenAI
 
 
 load_dotenv(override=True)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 class RAG:
     def __init__(self, retriever): 
-
+        logger.info("initializing rag engine")
         self.llm = self._setup_llm()
-        self.llm_name = os.getenv("OPENAI_DEPLOYMENT_NAME")
+        self.llm_name = os.getenv("OPENAI_MODEL")
         self.retriever = retriever
 
         self.conversation_history = []
@@ -81,6 +84,7 @@ class RAG:
         """
 
     def _setup_llm(self):
+        logger.info("creating openai client")
         return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # def generate_context(self, query):
@@ -93,29 +97,50 @@ class RAG:
     #         combined_prompt.append(context_str)
 
     def generate_context(self, query):
+        logger.info("generating retrieval context for query_length=%d", len(query))
         result = self.retriever.search(query)
         context = []
         for entry in result:
+            logger.info("retrieval entry=%s", entry)
             point_id = entry.id  # the numeric ID from Qdrant
-            chunk_text = entry.payload["text"]  # retrieve the original text
+            payload = entry.payload or {}
+            chunk_text = payload.get("text") or payload.get("context")
+
+            if not chunk_text:
+                logger.warning(
+                    "skipping point with missing text/context point_id=%s payload_keys=%s",
+                    point_id,
+                    list(payload.keys()),
+                )
+                continue
+
+            logger.debug("retrieved point_id=%s chunk_length=%d", point_id, len(chunk_text))
             context.append(chunk_text)
 
+        if not context:
+            logger.error("no valid context chunks found in retrieval results")
+            raise ValueError("No valid retrieval context found for this query.")
+
         combined_prompt = "\n\n---\n\n".join(context)
+        logger.info("generated combined context chunk_count=%d length=%d", len(context), len(combined_prompt))
         return combined_prompt
 
     
     def stream_and_store(self, stream):
+        logger.info("streaming llm response")
         full_text = ""
         for chunk in stream:
             delta = chunk.choices[0].delta
             if delta.content:
                 full_text += delta.content
+                logger.debug("received llm delta size=%d", len(delta.content))
                 yield delta.content   # for real streaming
 
         self.conversation_history.append({
             "role": "assistant",
             "content": full_text
         })
+        logger.info("stored assistant response length=%d history_size=%d", len(full_text), len(self.conversation_history))
 
 
 
@@ -125,7 +150,7 @@ class RAG:
         - If no active question → generate an open-ended question.
         - If there is an active question → evaluate or continue the discussion.
         """
-
+        logger.info("rag query start difficulty=%s query_length=%d", difficulty, len(query))
         context = self.generate_context(query)
         prompt = self.qa_prompt_tmpl_str.format(context=context, difficulty=difficulty, query=query)
 
@@ -139,5 +164,5 @@ class RAG:
             messages=messages,
             stream=True,
         )
-        
+        logger.info("rag query request dispatched model=%s", self.llm_name)
         return self.stream_and_store(response)

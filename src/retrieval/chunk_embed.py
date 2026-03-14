@@ -1,4 +1,5 @@
 import pickle
+import logging
 from transformers import AutoTokenizer
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from tqdm import tqdm
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 
 
 load_dotenv(override=True)
+logger = logging.getLogger(__name__)
 
 # --------- Chunking ---------
 
@@ -38,8 +40,9 @@ def chunk_to_embedding_text(chunk: ChunkList) -> str:
     """.strip()
 
 def chunking_llm(paragraph):
+    logger.info("chunking paragraph with llm length=%d", len(paragraph))
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-    model = ChatOpenAI(model=os.getenv("OPENAI_DEPLOYMENT_NAME"))
+    model = ChatOpenAI(model=os.getenv("OPENAI_MODEL"))
 
     model_with_structure = model.with_structured_output(ChunkList)
 
@@ -60,6 +63,7 @@ def chunking_llm(paragraph):
         """
 
     response = model_with_structure.invoke(prompt)
+    logger.info("llm chunking complete chunk_count=%d", len(response.chunks))
     return response
 
 
@@ -79,11 +83,13 @@ class EmbedData:
         self.contexts = []
 
     def _load_embed_model(self):
+        logger.info("loading embedding model name=%s", self.embed_model_name)
         return HuggingFaceEmbedding(model_name=self.embed_model_name,
                                     trust_remote_code=True,
                                     cache_folder='./hf_cache')
 
     def generate_embedding(self, chunk: Chunk) -> np.ndarray:
+        logger.debug("generating embedding title=%s", chunk.title)
    
         title_emb = np.array(
             self.embed_model.get_text_embedding(chunk.title),
@@ -116,29 +122,47 @@ class EmbedData:
         return final_emb
 
     def embed(self, contexts: ChunkList):
-
+        logger.info("embedding chunk list count=%d", len(contexts.chunks))
         for el in contexts.chunks:
             embeddings = self.generate_embedding(el)
             self.embeddings.append(embeddings)
             self.chunks.append(chunk_to_embedding_text(el))
+        logger.info("embedding complete count=%d", len(self.embeddings))
 
 
 # --------- Save / Load ---------
 def save_embeddings(embeddata, filename):
+    logger.info(
+        "saving embeddings filename=%s count=%d chunks=%d",
+        filename,
+        len(embeddata.embeddings),
+        len(embeddata.chunks),
+    )
     data = {
-        "contexts": embeddata.contexts,
-        "embeddings": embeddata.embeddings
+        "chunks": embeddata.chunks,
+        # Keep legacy key for backward compatibility with older cache readers.
+        "contexts": embeddata.chunks,
+        "embeddings": embeddata.embeddings,
     }
     with open(filename, "wb") as f:
         pickle.dump(data, f)
-    print(f"Embeddings saved to {filename}")
+    logger.info("embeddings saved filename=%s", filename)
 
 
 def load_embeddings(filename, embed_model_name="nomic-ai/nomic-embed-text-v1.5", batch_size=8):
+    logger.info("loading embeddings filename=%s", filename)
     with open(filename, "rb") as f:
         data = pickle.load(f)
 
     embeddata = EmbedData(embed_model_name=embed_model_name, batch_size=batch_size)
-    embeddata.contexts = data["contexts"]
-    embeddata.embeddings = data["embeddings"]
+    chunks = data.get("chunks") or data.get("contexts") or []
+    embeddata.chunks = chunks
+    embeddata.contexts = chunks
+    embeddata.embeddings = data.get("embeddings", [])
+    logger.info(
+        "embeddings loaded filename=%s count=%d chunks=%d",
+        filename,
+        len(embeddata.embeddings),
+        len(embeddata.chunks),
+    )
     return embeddata

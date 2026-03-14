@@ -18,8 +18,9 @@ st.set_page_config(
     page_icon="./images/logo1.png"
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+logger.info("streamlit app module loaded")
 
 if "id" not in st.session_state:
     st.session_state.id = uuid.uuid4()
@@ -124,6 +125,7 @@ def reset_chat():
 
 # Function to display the uploaded PDF in the app
 def display_pdf(file_bytes):
+    logger.info("displaying pdf preview size=%d", len(file_bytes))
     st.markdown("### PDF Preview")
     base64_pdf = base64.b64encode(file_bytes).decode("utf-8")
     pdf_display = f"""<iframe src="data:application/pdf;base64,{base64_pdf}" width="500" height="100%" type="application/pdf"

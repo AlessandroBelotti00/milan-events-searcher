@@ -45,7 +45,7 @@ def chunk_to_embedding_text(chunk: ChunkList) -> str:
 
 def chunking_llm(paragraph):
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-    model = ChatOpenAI(model=os.getenv("OPENAI_DEPLOYMENT_NAME"))
+    model = ChatOpenAI(model=os.getenv("OPENAI_MODEL"))
 
     model_with_structure = model.with_structured_output(ChunkList)
 

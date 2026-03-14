@@ -12,7 +12,7 @@ async def web_search(user_query: str) -> dict:
     start = time.time()
 
     response = client.responses.create(
-        model=os.getenv("OPENAI_DEPLOYMENT_NAME"),
+        model=os.getenv("OPENAI_MODEL"),
         input=f"Search the latest information about: {user_query}",
         max_output_tokens=400,
         # 👇 enables web search

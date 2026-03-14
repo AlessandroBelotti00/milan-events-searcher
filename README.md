@@ -63,35 +63,55 @@ README.md                 # You're reading it
 
 
 
-## Demo (Local Setup)
+## Demo (Docker Compose Setup)
 
-1. **Install Docker from the official website**  
-   You can install Docker following the instructions on the [official Docker website](https://www.docker.com/get-started) or refer to the [Visual Studio Code Containers guide](https://code.visualstudio.com/docs/containers/overview) for setting up Docker integration in VS Code.
+1. **Install Docker + Docker Compose**  
+   Follow the [official Docker installation guide](https://www.docker.com/get-started).
 
-2. **Install dependencies**:
+2. **Create your `.env` file in the project root**:
 
-   ```bash
-   pip install -r requirements.txt
+   ```env
+   OPENAI_API_KEY=your_key_here
+   OPENAI_MODEL=your_model_here
    ```
 
-3. **Start Qdrant locally using Docker**
-   Qdrant is used for vector storage and similarity search. You can find the official Qdrant image and detailed setup instructions on [Docker Hub](https://hub.docker.com/r/qdrant/qdrant).
+3. **Start the full multi-container app (frontend + backend + qdrant)**:
 
-   Then run the following command to start Qdrant locally:
-
-   Use this to initialize and run the LamAPI services:
-   
    ```bash
-   docker-compose up
+   docker compose up -d
    ```
 
-      docker-compose up 
-
-
-4. **Run the app**:
+   If you changed dependencies or the `Dockerfile`, rebuild:
 
    ```bash
-   streamlit run app.py
+   docker compose up --build -d
+   ```
+
+4. **Access services**:
+   - App (Streamlit): `http://localhost:8501`
+   - Backend health: `http://localhost:8000/health`
+   - Qdrant dashboard: `http://localhost:6333/dashboard`
+
+5. **Inspect logs**:
+
+   ```bash
+   docker compose logs --tail=200 backend
+   docker compose logs --tail=200 frontend
+   docker compose logs -f backend frontend
+   ```
+
+6. **Stop or restart**:
+
+   ```bash
+   docker compose down
+   docker compose restart backend
+   docker compose restart frontend
+   ```
+
+7. **Reset Qdrant data (destructive)**:
+
+   ```bash
+   docker compose down -v
    ```
 
 
