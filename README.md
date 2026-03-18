@@ -1,7 +1,5 @@
 # Multimodal-RAG
-Exam Trainer Agent lets you query your university notes in PDF format including text, tables and formulas using a Retrieval-Augmented Generation pipeline. It leverages Docling for structured PDF parsing and Qdrant for fast vector search over embedded document chunks. 
-
-
+Recipe Agent is an intelligent assistant designed to help you discover the best recipes based on your available ingredients or preferred cooking style. By leveraging a multimodal Retrieval-Augmented Generation (RAG) pipeline, it can understand and query complex documents to deliver highly relevant cooking suggestions.
 
 ## What This Project Does
 Link to Medium article reference: [Docling-Powered RAG: Querying Over Complex PDFs](https://medium.com/@pritigupta.ds/docling-powered-rag-querying-over-complex-pdfs-d99f5f58bc33)
@@ -18,8 +16,6 @@ This project is a **Streamlit-based application** on multimodal RAG that lets us
 * Enable chat-based querying through a RAG pipeline
 
 All of this runs **locally**, with a clean UI and persistent chat history.
-
-<img src="images/RAG-QueryType.png" width="100%">
 
 ## File Structure
 
